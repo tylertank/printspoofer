@@ -4,9 +4,9 @@
 
 VOID PrintUsage();
 DWORD DoMain();
-BOOL CheckAndEnablePrivilege(HANDLE hTokenToCheck, LPCWSTR pwszPrivilegeToCheck);
-BOOL GenerateRandomPipeName(LPWSTR *ppwszPipeName);
-HANDLE CreateSpoolNamedPipe(LPWSTR pwszPipeName);
+BOOL chkPriv(HANDLE hTokenToCheck, LPCWSTR pwszPrivilegeToCheck);
+BOOL genPipeNm(LPWSTR *ppwszPipeName);
+HANDLE createSpooPipe(LPWSTR pwszPipeName);
 HANDLE ConnectSpoolNamedPipe(HANDLE hPipe);
 HANDLE TriggerNamedPipeConnection(LPWSTR pwszPipeName);
 DWORD WINAPI TriggerNamedPipeConnectionThread(LPVOID lpParam);
